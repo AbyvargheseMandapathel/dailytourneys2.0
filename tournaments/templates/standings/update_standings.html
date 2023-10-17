@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Update Standings</h2>
+
+  <h3>Matches</h3>
+  <ul class="card-list">
+    {% for match_schedule in match_schedules %}
+      <li class="card">
+        <div class="card-content">
+          <p>Match No: {{ match_schedule.match_number }}</p>
+          <p>Map: {{ match_schedule.map }}</p>
+          <p>Winner Name: {{ match_schedule.winning_team.name }}</p>
+          <p>Group: {{ match_schedule.groups.all.0.name }} x {{ match_schedule.groups.all.1.name }}</p>
+          <form method="post" action="{% url 'update_match' match_schedule.id %}">
+            {% csrf_token %}
+            <button type="submit">Update Match</button>
+          </form>
+        </div>
+      </li>
+      {% if forloop.counter|divisibleby:6 %}</ul><ul class="card-list">{% endif %}
+    {% endfor %}
+  </ul>
+</div>
+<style>
+  /* Add CSS styles for the card list to control the layout */
+  .card-list {
+    list-style-type: none;
+    padding: 0;
+  }
+
+  .card {
+    float: left;
+    width: calc(16.66667% - 10px); /* 6 cards in a row with 10px margin */
+    margin-right: 10px;
+    margin-bottom: 10px;
+  }
+
+  .card-content {
+    border: 1px solid #ccc;
+    padding: 10px;
+  }
+</style>
+{% endblock %}

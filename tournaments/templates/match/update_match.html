@@ -1,0 +1,35 @@
+{% block content %}
+<form method="post" action="{% url 'save_match' match_schedule.id %}">
+    {% csrf_token %}
+    <!-- Match Number (disabled input field) -->
+    <p>Match No: <input type="text" name="match_number" value="{{ match_schedule.match_number }}" disabled></p>
+
+    <!-- Group (checkboxes) -->
+<p>Group:
+  {% for group in all_groups %}
+    <input type="checkbox" name="groups" value="{{ group.id }}" id="group_{{ group.id }}"
+      {% if group in match_schedule.groups.all %} checked{% endif %}>
+    <label for="group_{{ group.id }}">Group {{ group.name }}</label>
+  {% endfor %}
+</p>
+
+
+
+    <!-- Map (dropdown) -->
+<p>Map:
+  <select name="map">
+    <option value="erangal" {% if match_schedule.map == "erangal" %}selected{% endif %}>Erangal</option>
+    <option value="miramar" {% if match_schedule.map == "miramar" %}selected{% endif %}>Miramar</option>
+    <option value="vikendi" {% if match_schedule.map == "vikendi" %}selected{% endif %}>Vikendi</option>
+    <option value="sanhock" {% if match_schedule.map == "sanhock" %}selected{% endif %}>Sanhock</option>
+  </select>
+</p>
+
+
+    
+      
+      <button type="submit">Proceed</button>
+  
+  
+  </form>
+{% endblock %}

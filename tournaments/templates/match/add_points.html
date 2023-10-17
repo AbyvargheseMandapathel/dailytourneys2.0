@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Add Points to Teams</h2>
+
+  <p>Tournament: <strong>{{ tournament.name }}</strong></p>
+  <p>Map: <strong>{{ map_name }}</strong></p>
+  <p>Groups: 
+    {% for group in groups %}
+      {{ group.name }} 
+      {% if not forloop.last %}, {% endif %}
+    {% endfor %}
+  </p>
+  <p>Winning Team: <strong>{{ winning_team.name }}</strong></p>
+
+  <form method="post">
+    {% csrf_token %}
+    
+    <label for="selected_team">Select a Team:</label>
+    <select name="selected_team" id="selected_team" required>
+      <option value="">Select a Team</option>
+      {% for team in teams %}
+        <option value="{{ team.id }}">{{ team.name }}</option>
+      {% endfor %}
+    </select>
+    
+    <label for="position_points">Position Points:</label>
+    <input type="number" name="position_points" id="position_points" required>
+    
+    <label for="finishes_points">Finishes Points:</label>
+    <input type="number" name="finishes_points" id="finishes_points" required>
+
+    <button type="submit">Save Points</button>
+  </form>
+</div>
+{% endblock %}

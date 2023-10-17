@@ -1,0 +1,26 @@
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+    <!-- Match Number (disabled input field) -->
+    <p>Match No: <input type="text" name="match_number" value="{{ match_schedule.match_number }}" disabled></p>
+
+   <!-- Winner Name (dropdown) -->
+<!-- Winner Name (dropdown) -->
+<p>Winner Name:
+    <select name="winner_name">
+        {% for team in teams_in_match_groups %}
+            <option value="{{ team.name }}" {% if match_schedule.winning_team.name == team.name %}selected{% endif %}>
+                {{ team.name }}
+            </option>
+        {% endfor %}
+    </select>
+</p>
+
+
+    <!-- Kills -->
+    <p>Kills: <input type="text" name="kills" value="{{ match_schedule.kills }}"></p>
+
+    <!-- Button to set winner -->
+    <button type="submit">Set Winner</button>
+</form>
+{% endblock %}

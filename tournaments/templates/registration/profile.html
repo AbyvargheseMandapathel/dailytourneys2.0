@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Welcome, {{ user.username }}</h2>
+
+  <h3>Your Tournaments:</h3>
+  <ul>
+    {% for tournament in user_tournaments %}
+      <li>
+        <strong>{{ tournament.name }}</strong><br>
+        Number of Teams: {{ tournament.no_of_teams }}<br>
+        Number of Matches: {{ tournament.no_of_matches }}<br>
+        Number of Teams per Group: {{ tournament.no_of_teams_per_group }}
+        <br>
+        <!-- Add a button to view standings for this tournament -->
+        <form action="{% url 'team_standings' tournament_name=tournament.name %}" method="post">
+          {% csrf_token %}
+          <button type="submit">View Standings</button>
+        </form>
+      </li>
+    {% empty %}
+      <p>You haven't created any tournaments yet.</p>
+    {% endfor %}
+  </ul>
+
+  <!-- Add buttons for updating standings and creating tournaments -->
+  <form action="{% url 'update_standings' %}" method="post">
+    {% csrf_token %}
+    <button type="submit">Update Standings</button>
+  </form>
+
+  <form action="{% url 'create_tournament' %}" method="post">
+    {% csrf_token %}
+    <button type="submit">Create Tournament</button>
+  </form>
+</div>
+{% endblock %}
