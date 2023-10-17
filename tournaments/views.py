@@ -232,12 +232,20 @@ def add_points_to_teams(request, tournament_name, match_number):
         position_points = request.POST.get('position_points')
         finishes_points = request.POST.get('finishes_points')
 
-        # Create or get the MatchResult for the selected team in this match_schedule
-        match_result, created = MatchResult.objects.get_or_create(
-            tournament=tournament,
-            team=selected_team,
-            match_schedule=match_schedule
-        )
+        # Check if a MatchResult already exists for this team and match schedule
+        try:
+            match_result = MatchResult.objects.get(
+                tournament=tournament,
+                team=selected_team,
+                match_schedule=match_schedule
+            )
+        except MatchResult.DoesNotExist:
+            # If it doesn't exist, create a new MatchResult
+            match_result = MatchResult(
+                tournament=tournament,
+                team=selected_team,
+                match_schedule=match_schedule
+            )
 
         # Update position_points and finishes_points for the selected team
         if position_points:
