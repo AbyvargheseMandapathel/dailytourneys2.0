@@ -13,7 +13,7 @@
   </p>
   <p>Winning Team: <strong>{{ winning_team.name }}</strong></p>
 
-  <form method="post">
+  <form method="post" id="points-form">
     {% csrf_token %}
     
     <label for="selected_team">Select a Team:</label>
@@ -29,8 +29,287 @@
     
     <label for="finishes_points">Finishes Points:</label>
     <input type="number" name="finishes_points" id="finishes_points" required>
-
-    <button type="submit">Save Points</button>
+    
+    <input type="hidden" name="team_id" id="team_id"> <!-- Hidden field for team ID -->
+    
+    <button type="button" id="save-button">Save Points</button>
+    <button type="button" id="edit-button" style="display: none;">Edit</button>
+    <button type="button" id="delete-button" style="display: none;">Delete</button>
+    <button type="submit" id="submit-button" style="display: none;">Submit</button>
   </form>
-</div>
+
+  <div id="points-table">
+    <h2>Saved Points</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Team</th>
+          <th>Position Points</th>
+          <th>Finishes Points</th>
+          <th>Total Points</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="points-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Edit form/modal (display when the Edit button is clicked) -->
+  <div id="edit-form" style="display: none;">
+    <h2>Edit Points</h2>
+    <label for="edit_position_points">Position Points:</label>
+    <input type="number" name="edit_position_points" id="edit_position_points" required>
+    <label for="edit_finishes_points">Finishes Points:</label>
+    <input type="number" name="edit_finishes_points" id="edit_finishes_points" required>
+    <button type="button" id="update-button">Update</button>
+    <button type="button" id="cancel-button">Cancel</button>
+  </div>
+
+  <!-- Add a button to submit the data to the database -->
+  <button type="button" id="submit-to-database">Submit to Database</button>
+
+  <script>
+    // Initialize saved points array
+    let savedPoints = [];
+
+    // Initialize the team ID to edit or delete
+    let teamToEdit = null;
+    let teamToDelete = null;
+
+    // Get references to form elements
+    const form = document.getElementById('points-form');
+    const saveButton = document.getElementById('save-button');
+    const editButton = document.getElementById('edit-button');
+    const deleteButton = document.getElementById('delete-button');
+    const submitButton = document.getElementById('submit-button');
+    const editForm = document.getElementById('edit-form');
+    const updateButton = document.getElementById('update-button');
+    const cancelButton = document.getElementById('cancel-button');
+    const editPositionPoints = document.getElementById('edit_position_points');
+    const editFinishesPoints = document.getElementById('edit_finishes_points');
+    const pointsBody = document.getElementById('points-body');
+    const submitToDatabaseButton = document.getElementById('submit-to-database');
+    const hiddenTeamId = document.getElementById('team_id');
+
+    // Add a click event listener to the Save button
+    saveButton.addEventListener('click', function () {
+      // Get values from the form
+      const selectedTeam = document.getElementById('selected_team').value;
+      const positionPoints = document.getElementById('position_points').value;
+      const finishesPoints = document.getElementById('finishes_points').value;
+      const teamId = new Date().getTime();
+
+      // Create an object to store the values
+      const pointsData = {
+        selectedTeam,
+        positionPoints,
+        finishesPoints,
+        teamId, // Include the team ID
+      };
+
+      // Store the values in local storage
+      savedPoints.push(pointsData);
+      localStorage.setItem('savedPoints', JSON.stringify(savedPoints));
+
+      // Add data to the table and sort
+      addRowToTable(pointsData);
+    });
+
+    // Load saved data from local storage
+    function loadSavedPoints() {
+      const savedData = localStorage.getItem('savedPoints');
+      if (savedData) {
+        savedPoints = JSON.parse(savedData);
+        savedPoints.forEach(addRowToTable);
+      }
+    }
+
+    // Add a click event listener to the Edit button
+    editButton.addEventListener('click', function () {
+      // Set the team ID to edit
+      teamToEdit = hiddenTeamId.value; // Retrieve the team ID from the hidden field
+      const teamData = savedPoints.find(data => data.teamId === teamToEdit);
+
+      editPositionPoints.value = teamData.positionPoints;
+      editFinishesPoints.value = teamData.finishesPoints;
+
+      editForm.style.display = 'block';
+      submitButton.style.display = 'none';
+    });
+
+    // Add a click event listener to the Update button
+    updateButton.addEventListener('click', function () {
+      // Update the scores for the team with the specified ID
+      const teamData = savedPoints.find(data => data.teamId === teamToEdit);
+
+      teamData.positionPoints = editPositionPoints.value;
+      teamData.finishesPoints = editFinishesPoints.value;
+
+      localStorage.setItem('savedPoints', JSON.stringify(savedPoints));
+      editForm.style.display = 'none';
+      submitButton.style.display = 'inline';
+
+      // Update the table row
+      updateTableRow(teamData);
+
+      // Reset the team to edit
+      teamToEdit = null;
+      hiddenTeamId.value = ''; // Clear the hidden field
+    });
+
+    // Add a click event listener to the Delete button
+    deleteButton.addEventListener('click', function () {
+      // Delete the team data with the specified ID
+      savedPoints = savedPoints.filter(data => data.teamId !== teamToDelete);
+      localStorage.setItem('savedPoints', JSON.stringify(savedPoints));
+      removeTableRow(teamToDelete); // Remove the row from the table
+
+      // Reset the team to delete
+      teamToDelete = null;
+      hiddenTeamId.value = ''; // Clear the hidden field
+      editForm.style.display = 'none';
+      submitButton.style.display = 'inline';
+    });
+
+    // Add a click event listener to the Cancel button (in the edit form)
+    cancelButton.addEventListener('click', function () {
+      // Reset the team to edit
+      teamToEdit = null;
+      hiddenTeamId.value = ''; // Clear the hidden field
+      editForm.style.display = 'none';
+      submitButton.style.display = 'inline';
+    });
+
+    // Add a click event listener to the Submit button
+    submitButton.addEventListener('click', function () {
+      // Submit the data to the server for database storage
+      submitDataToDatabase(savedPoints);
+    });
+
+    // Add a click event listener to the Submit to Database button
+    submitToDatabaseButton.addEventListener('click', function () {
+      // Submit the data to the server for database storage
+      submitDataToDatabase(savedPoints);
+    });
+
+    // Function to add a row to the table
+    function addRowToTable(teamData) {
+      const row = document.createElement('tr');
+      const teamId = teamData.teamId; // Get the team ID
+      row.dataset.teamId = teamId; // Set the team ID as a data attribute
+      hiddenTeamId.value = teamId; // Set the hidden field value
+      const cellTeam = document.createElement('td');
+      cellTeam.textContent = teamData.selectedTeam;
+      row.appendChild(cellTeam);
+
+      const cellPositionPoints = document.createElement('td');
+      cellPositionPoints.textContent = teamData.positionPoints;
+      row.appendChild(cellPositionPoints);
+
+      const cellFinishesPoints = document.createElement('td');
+      cellFinishesPoints.textContent = teamData.finishesPoints;
+      row.appendChild(cellFinishesPoints);
+
+      const cellTotalPoints = document.createElement('td');
+      cellTotalPoints.textContent = parseInt(teamData.positionPoints) + parseInt(teamData.finishesPoints);
+      row.appendChild(cellTotalPoints);
+
+      const cellAction = document.createElement('td');
+      const editAction = document.createElement('button');
+      editAction.textContent = 'Edit';
+      editAction.addEventListener('click', function () {
+        // Set the dataset attribute to store the team ID
+        editButton.dataset.teamId = teamId;
+        editButton.style.display = 'inline';
+        editButton.click();
+      });
+
+      const deleteAction = document.createElement('button');
+      deleteAction.textContent = 'Delete';
+      deleteAction.addEventListener('click', function () {
+        // Set the team ID to delete
+        teamToDelete = teamId;
+        deleteButton.style.display = 'inline';
+        deleteButton.click();
+      });
+
+      cellAction.appendChild(editAction);
+      cellAction.appendChild(deleteAction);
+      row.appendChild(cellAction);
+
+      pointsBody.appendChild(row);
+
+      // Call the sorting function
+      sortTable();
+    }
+
+    // Function to update a table row
+    function updateTableRow(teamData) {
+      const row = pointsBody.querySelector(`[data-team-id="${teamData.teamId}"]`);
+      if (row) {
+        row.cells[1].textContent = teamData.positionPoints;
+        row.cells[2].textContent = teamData.finishesPoints;
+        row.cells[3].textContent = parseInt(teamData.positionPoints) + parseInt(teamData.finishesPoints);
+      }
+
+      // Call the sorting function
+      sortTable();
+    }
+
+    // Function to remove a table row
+    function removeTableRow(teamId) {
+      const row = pointsBody.querySelector(`[data-team-id="${teamId}"]`);
+      if (row) {
+        pointsBody.removeChild(row);
+      }
+
+      // Call the sorting function
+      sortTable();
+    }
+
+    // Sorting function
+    function sortTable() {
+      const table = document.querySelector('table');
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+
+      rows.sort((a, b) => {
+        const pointsA = parseInt(a.querySelector('td:nth-child(4)').textContent);
+        const pointsB = parseInt(b.querySelector('td:nth-child(4)').textContent);
+
+        if (pointsA !== pointsB) {
+          return pointsB - pointsA; // Sort by total points
+        } else {
+          const positionA = parseInt(a.querySelector('td:nth-child(2)').textContent);
+          const positionB = parseInt(b.querySelector('td:nth-child(2)').textContent);
+
+          if (positionA !== positionB) {
+            return positionB - positionA; // Sort by position points
+          } else {
+            const finishesA = parseInt(a.querySelector('td:nth-child(3)').textContent);
+            const finishesB = parseInt(b.querySelector('td:nth-child(3)').textContent);
+
+            if (finishesA !== finishesB) {
+              return finishesB - finishesA; // Sort by finishes points
+            } else {
+              // Add sorting by WWCD if needed
+              return 0;
+            }
+          }
+        }
+      });
+
+      rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Function to submit data to the server (simulated in this example)
+    function submitDataToDatabase(data) {
+      // In a real application, you would make an AJAX request to your server to save the data to a database.
+      // For this example, we'll just display the data in the console.
+      console.log('Data to submit:', data);
+    }
+
+    // Call the function to load saved data from local storage
+    loadSavedPoints();
+  </script>
 {% endblock %}
