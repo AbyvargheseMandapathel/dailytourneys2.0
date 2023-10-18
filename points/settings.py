@@ -133,5 +133,5 @@ LOGIN_REDIRECT_URL = '/profile/'
 LOGOUT_REDIRECT_URL = '/'  # Replace with the URL of your login page
   
 
-CSRF_TRUSTED_ORIGINS = ['https://14df-103-159-151-109.ngrok-free.app']
+CSRF_TRUSTED_ORIGINS = ['https://fe9a-103-159-151-109.ngrok-free.app']
 

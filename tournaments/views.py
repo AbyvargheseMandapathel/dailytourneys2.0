@@ -207,7 +207,7 @@ def set_winner_and_kills(request, tournament_name, match_number):
         'teams_in_match_groups': teams_in_match_groups,
     })
 
-    
+     
 def add_points_to_teams(request, tournament_name, match_number):
     # Retrieve the tournament and match schedule using the provided names and numbers
     tournament = get_object_or_404(Tournament, name=tournament_name)
@@ -271,24 +271,52 @@ def add_points_to_teams(request, tournament_name, match_number):
         'teams': teams,
     })
 
-def save_points_to_database(request):
-    if request.method == 'POST':
-        data = request.POST  # You can use request.POST to access the data.
-        # Validate the data and save it to the database.
-        # For example:
-        try:
-            match_result = MatchResult(
-                tournament_id=data['tournament_id'],
-                team_id=data['selected_team'],
-                match_schedule_id=data['match_schedule_id'],
-                finishes_points=data['finishes_points'],
-                position_points=data['position_points']
-            )
-            match_result.save()
-            return JsonResponse({'message': 'Data saved successfully'})
-        except Exception as e:
-            return JsonResponse({'message': 'Error saving data: ' + str(e)}, status=400)
-    return JsonResponse({'message': 'Invalid request method'}, status=405)
+from django.http import JsonResponse
+import json
+from django.views.decorators.http import require_http_methods
+
+
+@require_http_methods(["GET", "POST"])
+def save_points_to_database(request, tournament_name, match_number):
+    # Retrieve the tournament and match schedule using the provided names and numbers
+    tournament = get_object_or_404(Tournament, name=tournament_name)
+    match_schedule = get_object_or_404(MatchSchedule, tournament=tournament, match_number=match_number)
+    
+    # Handle form submission
+    data = request.POST
+
+    # Extract the relevant data
+    selected_team_id = data.get('selected_team')
+    position_points = data.get('position_points')
+    finishes_points = data.get('finishes_points')
+
+    # Make sure the necessary fields are provided
+    if not (selected_team_id and position_points and finishes_points):
+        return JsonResponse({'message': 'Please provide all required fields'}, status=400)
+
+    # Get the selected team and other required data
+    selected_team = get_object_or_404(Team, id=selected_team_id)
+
+    # Check if a MatchResult already exists for this team and match schedule
+    match_result, created = MatchResult.objects.get_or_create(
+        tournament=tournament,
+        team=selected_team,
+        match_schedule=match_schedule,
+        tournament_name= tournament_name,
+        match_number = match_number
+    )
+
+    # Update position_points and finishes_points for the selected team
+    if position_points:
+        match_result.position_points = int(position_points)
+    if finishes_points:
+        match_result.finishes_points = int(finishes_points)
+
+    # Save the MatchResult
+    match_result.save()
+
+    return JsonResponse({'message': 'Data saved successfully'})
+
 
 
 def create_tournament(request):
