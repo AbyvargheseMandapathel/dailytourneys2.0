@@ -4,9 +4,12 @@ from django.shortcuts import render, redirect,get_object_or_404
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from .models import Tournament,OverallStandings,MatchSchedule,MatchResult,Group,Team
-from django.http import HttpResponse , Http404 , HttpResponseRedirect
+from django.http import HttpResponse , Http404 , HttpResponseRedirect , JsonResponse
 from django.urls import reverse
 from django.db.models import F,Q
+import json
+from django.template.context_processors import csrf
+
 
 
 
@@ -267,8 +270,27 @@ def add_points_to_teams(request, tournament_name, match_number):
         'winning_team': winning_team,
         'teams': teams,
     })
-    
+
+def save_points_to_database(request):
+    if request.method == 'POST':
+        data = request.POST  # You can use request.POST to access the data.
+        # Validate the data and save it to the database.
+        # For example:
+        try:
+            match_result = MatchResult(
+                tournament_id=data['tournament_id'],
+                team_id=data['selected_team'],
+                match_schedule_id=data['match_schedule_id'],
+                finishes_points=data['finishes_points'],
+                position_points=data['position_points']
+            )
+            match_result.save()
+            return JsonResponse({'message': 'Data saved successfully'})
+        except Exception as e:
+            return JsonResponse({'message': 'Error saving data: ' + str(e)}, status=400)
+    return JsonResponse({'message': 'Invalid request method'}, status=405)
+
+
 def create_tournament(request):
     # Implement the logic to create tournaments here
     return render(request, 'create_tournament.html')
-
