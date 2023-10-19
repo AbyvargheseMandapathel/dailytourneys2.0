@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Team Data Image Preview</title>
+</head>
+<body>
+    <h1>Team Data Image Preview</h1>
+    <img src="{% url 'download_team_data_image' tournament_name=tournament_name match_number=match_number %}" alt="Team Data Image">
+    
+    <!-- You can add more content or styling here -->
+    
+    <a href="{% url 'download_team_data_image' tournament_name=tournament_name match_number=match_number %}">Download Team Data Image</a>
+</body>
+</html>

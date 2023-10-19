@@ -21,6 +21,9 @@
     <input type="number" name="finishes_points" id="finishes_points">
 
     <button type="submit" id="save-points-button">Save Points</button>
+    <a href="{% url 'download_team_data_image' tournament_name=tournament.name match_number=match_schedule.match_number %}">Download Team Data Image</a>
+    <a href="{% url 'preview_team_data_image' tournament_name=tournament.name match_number=match_schedule.match_number %}">Preview Team Data Image</a>
+
   </form>
 
   <div>
@@ -53,6 +56,10 @@
     </table>
   </div>
 </div>
+
+<!-- Display the team data image -->
+<img src="data:image/png;base64, {{ image_data|safe }}" alt="Team Data Image">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
 // Use AJAX to submit the form and update the table
@@ -143,6 +150,25 @@ function addDeleteButtonEventListeners() {
     }
   });
 }
+
+// Function to update the image
+function updateTeamDataImage() {
+    // Make an AJAX request to get the latest image data
+    $.ajax({
+      url: '{% url "preview_team_data_image" tournament_name=tournament.name match_number=match_schedule.match_number %}',
+      type: 'GET',
+      success: function(data) {
+        // Update the src attribute of the img element
+        $('#team-data-image').attr('src', 'data:image/png;base64,' + data.image_data);
+      },
+      error: function() {
+        console.log('Failed to update the team data image.');
+      }
+    });
+  }
+
+  // Periodically call the update function (e.g., every 5 seconds)
+  setInterval(updateTeamDataImage, 5000); // Update every 5 seconds
 
 function getCSRFToken() {
   const csrfCookie = document.cookie.split("; ").find((cookie) => cookie.startsWith("csrftoken="));
