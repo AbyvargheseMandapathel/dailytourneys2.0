@@ -3,9 +3,11 @@
 {% block content %}
   <h2>Add Points to Teams</h2>
 
-  <form id="points-form">
+  <form id="points-form" method="post">
+    {% csrf_token %}
+
     <label for="selected_team">Select a Team:</label>
-    <select name="selected_team" id="selected_team" required>
+    <select name="selected_team" id="selected_team">
       <option value="">Select a Team</option>
       {% for team in teams %}
         <option value="{{ team.id }}">{{ team.name }}</option>
@@ -13,195 +15,109 @@
     </select>
 
     <label for="position_points">Position Points:</label>
-    <input type="number" name="position_points" id="position_points" required>
+    <input type="number" name="position_points" id="position_points">
 
     <label for="finishes_points">Finishes Points:</label>
-    <input type="number" name="finishes_points" id="finishes_points" required>
+    <input type="number" name="finishes_points" id="finishes_points">
 
-    <button type="button" id="save-button">Save Points</button>
+    <button type="submit" id="save-points-button">Save Points</button>
   </form>
 
-  <div id="points-table">
+  <div>
+    <!-- Display a table of saved points for other teams -->
     <h2>Saved Points</h2>
-    <table>
+    <table id="points-table">
       <thead>
         <tr>
           <th>Team</th>
           <th>Position Points</th>
           <th>Finishes Points</th>
           <th>Total Points</th>
-          <th>Action</th>
+          <th>Edit</th>
         </tr>
       </thead>
-      <tbody id="points-body"></tbody>
+      <tbody>
+        {% for team_data in teams_data %}
+          <tr>
+            <td>{{ team_data.team_name }}</td>
+            <td>{{ team_data.position_points }}</td>
+            <td>{{ team_data.finishes_points }}</td>
+            <td>{{ team_data.total_points }}</td>
+            <td>
+              <button class="edit-button" data-team-id="{{ team_data.team_id }}">Edit</button>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
     </table>
   </div>
+</div>
 
-  <!-- Add a button to submit the data to the database -->
-  <button type="button" id="submit-to-database" data-tournament-name="{{ tournament.name }}" data-match-number="{{ match_number }}">Submit to Database</button>
+<script>
+  // Use AJAX to submit the form and update the table
+  const form = document.getElementById('points-form');
+  const pointsTable = document.getElementById('points-table');
+  const savePointsButton = document.getElementById('save-points-button');
 
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
 
-  <script>
-    // Initialize saved points array from local storage
-    let savedPoints = JSON.parse(localStorage.getItem('savedPoints')) || [];
-    // Get references to form elements and points table
-    const form = document.getElementById('points-form');
-    const saveButton = document.getElementById('save-button');
-    const submitToDatabaseButton = document.getElementById('submit-to-database');
-    const tournamentName = submitToDatabaseButton.getAttribute('data-tournament-name');
-    const matchNumber = submitToDatabaseButton.getAttribute('data-match-number');
-    const pointsBody = document.getElementById('points-body');
+    const selectedTeam = document.getElementById('selected_team').value;
+    const positionPoints = document.getElementById('position_points').value;
+    const finishesPoints = document.getElementById('finishes_points').value;
 
-    // Function to save data to local storage
-    function updateLocalStorage() {
-      localStorage.setItem('savedPoints', JSON.stringify(savedPoints));
+    if (!selectedTeam || !positionPoints || !finishesPoints) {
+      alert('Please fill in all fields.');
+      return;
     }
 
-    // Function to add a row to the table
-    function addRowToTable(teamData) {
-      const row = pointsBody.insertRow();
+    const formData = new FormData(form);
 
-      const cellTeam = row.insertCell(0);
-      cellTeam.textContent = teamData.selected_team;
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          // Update the table with sorted data
+          const tableBody = pointsTable.querySelector('tbody');
+          tableBody.innerHTML = '';
 
-      const cellPositionPoints = row.insertCell(1);
-      cellPositionPoints.textContent = teamData.position_points;
+          data.teams_data.forEach(teamData => {
+            const row = tableBody.insertRow();
+            row.innerHTML = `
+              <td>${teamData.team_name}</td>
+              <td>${teamData.position_points}</td>
+              <td>${teamData.finishes_points}</td>
+              <td>${teamData.total_points}</td>
+              <td>
+                <button class="edit-button" data-team-id="${teamData.team_id}">Edit</button>
+              </td>
+            `;
+          });
 
-      const cellFinishesPoints = row.insertCell(2);
-      cellFinishesPoints.textContent = teamData.finishes_points;
-
-      const cellTotalPoints = row.insertCell(3);
-      cellTotalPoints.textContent = teamData.total_points;
-
-      const cellAction = row.insertCell(4);
-      const deleteAction = document.createElement('button');
-      deleteAction.textContent = 'Delete';
-      deleteAction.addEventListener('click', function () {
-        // Remove the row from the table
-        pointsBody.deleteRow(row.rowIndex);
-
-        // Remove the data from the savedPoints array
-        savedPoints = savedPoints.filter(data => data !== teamData);
-
-        // Update local storage
-        updateLocalStorage();
+          // Remove the entered team from the dropdown
+          const dropdown = document.getElementById('selected_team');
+          const optionToRemove = dropdown.querySelector(`[value="${selectedTeam}"]`);
+          optionToRemove.remove();
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
       });
+  });
 
-      cellAction.appendChild(deleteAction);
-
-      // Call the sorting function
-      sortTable();
+  // Add an event listener for the "Edit" buttons
+  pointsTable.addEventListener('click', (event) => {
+    if (event.target.classList.contains('edit-button')) {
+      const teamId = event.target.getAttribute('data-team-id');
+      // You can implement the edit functionality here
+      alert(`Editing team with ID: ${teamId}`);
     }
-
-    // Sorting function (for sorting by total points)
-    function sortTable() {
-      const table = document.querySelector('table');
-      const tbody = table.querySelector('tbody');
-      const rows = Array.from(tbody.rows);
-
-      rows.sort((a, b) => {
-        const pointsA = parseInt(a.cells[3].textContent);
-        const pointsB = parseInt(b.cells[3].textContent);
-        return pointsB - pointsA; // Sort by total points in descending order
-      });
-
-      // Clear and rebuild the table with sorted rows
-      tbody.innerHTML = '';
-      rows.forEach(row => tbody.appendChild(row));
-    }
-
-    // Add a click event listener to the Save button
-    saveButton.addEventListener('click', function () {
-      // Get values from the form
-      const selectedTeamId = document.getElementById('selected_team').value;
-      const positionPoints = document.getElementById('position_points').value;
-      const finishesPoints = document.getElementById('finishes_points').value;
-
-      if (!selectedTeamId || !positionPoints || !finishesPoints) {
-        alert('Please fill in all fields.');
-        return;
-      }
-      
-      // Create an object to store the values
-      const data = {
-        selected_team: selectedTeamId,
-        position_points: positionPoints,
-        finishes_points: finishesPoints,
-        tournament_name: tournamentName,
-        match_number: matchNumber,
-        
-      };
-
-      // Calculate total points
-      data.total_points = parseInt(data.position_points) + parseInt(data.finishes_points);
-
-      // Add data to the table
-      addRowToTable(data);
-
-      // Clear form inputs
-      document.getElementById('selected_team').value = '';
-      document.getElementById('position_points').value = '';
-      document.getElementById('finishes_points').value = '';
-
-      // Save the data to local storage
-      savedPoints.push(data);
-      updateLocalStorage();
-    });
-
-    // Add a click event listener to the Submit to Database button
-    submitToDatabaseButton.addEventListener('click', function () {
-      if (savedPoints.length === 0) {
-        alert('No data to submit.');
-        return;
-      }
-      // Call the function to submit data to the database
-      submitDataToDatabase(savedPoints);
-    });
-
-    // Load any previously saved data from local storage
-    savedPoints.forEach(addRowToTable);
-
-    function submitDataToDatabase(data) {
-  const csrfToken = "{{ csrf_token }}"; // Ensure you've declared the CSRF token in your HTML template
-  const tournamentName = "{{ tournament.name }}"; // Get the tournament name from the template
-  const matchNumber = submitToDatabaseButton.getAttribute('data-match-number');
-  const url = `/save_points_to_database/${tournamentName}/${matchNumber}/add_points/`;
- // Include the parameters in the URL
-
-  // Create a request object
-  const request = new XMLHttpRequest();
-  request.open('POST', url, true);
-  request.setRequestHeader('Content-Type', 'application/json');
-  request.setRequestHeader('X-CSRFToken', csrfToken);
-
-  // Define a callback function to handle the response from the server
-  request.onreadystatechange = function () {
-    if (request.readyState === 4) {
-      if (request.status === 200) {
-        // Data saved successfully; you can handle the response here
-        console.log('Data saved to the database:', request.responseText);
-
-        // Optionally, you can clear the saved data from local storage
-        savedPoints = [];
-        updateLocalStorage();
-
-        // Clear the table
-        pointsBody.innerHTML = '';
-      } else {
-        // Error handling: data was not saved
-        console.error('Failed to save data to the database. Server returned ' + request.status);
-      }
-    }
-  };
-
-  // Send the data to the server as JSON
-  request.send(JSON.stringify(data));
-}
-    // Function to get CSRF token (you need to implement this)
-    function getCookie(name) {
-      // Replace with your actual CSRF token retrieval logic
-      // Example code here assumes you have a function `getCookie` that retrieves the token from cookies.
-      // Modify this to match your application's authentication mechanism.
-    }
-  </script>
+  });
+</script>
 {% endblock %}

@@ -207,117 +207,75 @@ def set_winner_and_kills(request, tournament_name, match_number):
         'teams_in_match_groups': teams_in_match_groups,
     })
 
-     
+    
 def add_points_to_teams(request, tournament_name, match_number):
     # Retrieve the tournament and match schedule using the provided names and numbers
     tournament = get_object_or_404(Tournament, name=tournament_name)
     match_schedule = get_object_or_404(MatchSchedule, tournament=tournament, match_number=match_number)
-    
-    # Get the map associated with the match_schedule
-    map_name = match_schedule.map
-    
-    # Retrieve the groups associated with the match_schedule
-    groups = match_schedule.groups.all()
-    
-    # Identify the winning team for this match_schedule
-    winning_team = match_schedule.winning_team
 
-    # Fetch teams for the dropdown, excluding the winning team
-    teams = Team.objects.filter(groups__in=groups).exclude(id=winning_team.id)
+    # Retrieve the groups associated with the match schedule
+    match_groups = match_schedule.groups.all()
 
     if request.method == 'POST':
-        # Handle form submission here
-        # You can access the selected team, position points, and finishes points from request.POST
-
-        # Create a MatchResult object for the selected team and match schedule
+        # Process the POST data as before
         selected_team_id = request.POST.get('selected_team')
-        selected_team = Team.objects.get(id=selected_team_id)
         position_points = request.POST.get('position_points')
         finishes_points = request.POST.get('finishes_points')
 
-        # Check if a MatchResult already exists for this team and match schedule
-        try:
-            match_result = MatchResult.objects.get(
-                tournament=tournament,
-                team=selected_team,
-                match_schedule=match_schedule
-            )
-        except MatchResult.DoesNotExist:
-            # If it doesn't exist, create a new MatchResult
-            match_result = MatchResult(
-                tournament=tournament,
-                team=selected_team,
-                match_schedule=match_schedule
-            )
+        if not (selected_team_id and position_points and finishes_points):
+            return JsonResponse({'error': 'Please provide all required fields.'}, status=400)
 
-        # Update position_points and finishes_points for the selected team
-        if position_points:
-            match_result.position_points = int(position_points)
-        if finishes_points:
-            match_result.finishes_points = int(finishes_points)
+        # Get the selected team
+        selected_team = get_object_or_404(Team, id=selected_team_id)
 
-        # Save the MatchResult
+        # Create a MatchResult instance and set the points
+        match_result, created = MatchResult.objects.get_or_create(
+            tournament=tournament,
+            team=selected_team,
+            match_schedule=match_schedule,
+            finishes_points = 0,
+            position_points = 0
+        )
+        match_result.position_points = int(position_points)
+        match_result.finishes_points = int(finishes_points)
         match_result.save()
 
-        # Redirect to a success page or any other page as needed
-        return HttpResponse("Points added successfully")
+    # Retrieve and sort the data as needed
+    teams_data = get_teams_data(tournament, match_schedule, match_groups)
 
-    # If the request method is not POST, display the form
-    return render(request, 'match/add_points.html', {
-        'tournament': tournament,
-        'map_name': map_name,
-        'groups': groups,
-        'winning_team': winning_team,
-        'teams': teams,
-    })
+    if request.method == 'POST':
+        return JsonResponse({'message': 'Points added successfully.', 'teams_data': teams_data})
 
-from django.http import JsonResponse
-import json
-from django.views.decorators.http import require_http_methods
+    # If it's not a POST request, return the initial page with data
+    teams = Team.objects.filter(groups__in=match_groups).distinct()
 
+    return render(request, 'match/add_points.html', {'teams': teams, 'teams_data': teams_data})
 
-@require_http_methods(["GET", "POST"])
-def save_points_to_database(request, tournament_name, match_number):
-    # Retrieve the tournament and match schedule using the provided names and numbers
-    tournament = get_object_or_404(Tournament, name=tournament_name)
-    match_schedule = get_object_or_404(MatchSchedule, tournament=tournament, match_number=match_number)
-    
-    # Handle form submission
-    data = request.POST
+def get_teams_data(tournament, match_schedule, match_groups):
+    # Retrieve and sort the data as needed
+    teams_data = []
+    for team in Team.objects.filter(groups__in=match_groups).distinct():
+        match_result = MatchResult.objects.filter(
+            tournament=tournament,
+            team=team,
+            match_schedule=match_schedule
+        ).first()
+        if match_result:
+            total_points = match_result.position_points + match_result.finishes_points
+        else:
+            total_points = 0
 
-    # Extract the relevant data
-    selected_team_id = data.get('selected_team')
-    position_points = data.get('position_points')
-    finishes_points = data.get('finishes_points')
+        teams_data.append({
+            'team_name': team.name,
+            'position_points': match_result.position_points if match_result else 0,
+            'finishes_points': match_result.finishes_points if match_result else 0,
+            'total_points': total_points
+        })
 
-    # Make sure the necessary fields are provided
-    if not (selected_team_id and position_points and finishes_points):
-        return JsonResponse({'message': 'Please provide all required fields'}, status=400)
+    # Sort the data by total points in descending order
+    teams_data.sort(key=lambda x: x['total_points'], reverse=True)
 
-    # Get the selected team and other required data
-    selected_team = get_object_or_404(Team, id=selected_team_id)
-
-    # Check if a MatchResult already exists for this team and match schedule
-    match_result, created = MatchResult.objects.get_or_create(
-        tournament=tournament,
-        team=selected_team,
-        match_schedule=match_schedule,
-        tournament_name= tournament_name,
-        match_number = match_number
-    )
-
-    # Update position_points and finishes_points for the selected team
-    if position_points:
-        match_result.position_points = int(position_points)
-    if finishes_points:
-        match_result.finishes_points = int(finishes_points)
-
-    # Save the MatchResult
-    match_result.save()
-
-    return JsonResponse({'message': 'Data saved successfully'})
-
-
+    return teams_data
 
 def create_tournament(request):
     # Implement the logic to create tournaments here
