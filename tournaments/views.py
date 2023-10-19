@@ -266,7 +266,6 @@ def add_points_to_teams(request, tournament_name, match_number):
     return render(request, 'match/add_points.html', context)
 
 def get_teams_data(tournament, match_schedule, match_groups):
-    # Retrieve and sort the data as needed
     teams_data = []
     for team in Team.objects.filter(groups__in=match_groups).distinct():
         match_result = MatchResult.objects.filter(
@@ -279,24 +278,27 @@ def get_teams_data(tournament, match_schedule, match_groups):
         else:
             total_points = 0
 
+        # Assuming team logos are stored in a 'logo_url' field in the Team model
+        logo_url = team.logo.url
+
+
         teams_data.append({
             'team_id': team.id,
             'team_name': team.name,
             'position_points': match_result.position_points if match_result else 0,
             'finishes_points': match_result.finishes_points if match_result else 0,
             'total_points': total_points,
-            
+            'logo_url': logo_url,  # Add the team logo URL here
         })
 
-    # Sort the data by total points in descending order, and then by other criteria
     teams_data.sort(key=lambda x: (
-        -x['total_points'],           # Sort by total points (highest to lowest)
-        -x['position_points'],        # In case of a tie, sort by position points
-        -x['finishes_points'],        # In case of a tie, sort by finishes points
-                         
+        -x['total_points'],
+        -x['position_points'],
+        -x['finishes_points'],
     ))
 
     return teams_data
+
 
 
 def download_team_data_image(request, tournament_name, match_number):

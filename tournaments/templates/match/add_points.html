@@ -40,18 +40,22 @@
         </tr>
       </thead>
       <tbody>
-        {% for team_data in teams_data %}
-          <tr>
-            <td>{{ team_data.team_name }}</td>
-            <td>{{ team_data.position_points }}</td>
-            <td>{{ team_data.finishes_points }}</td>
-            <td>{{ team_data.total_points }}</td>
-            <td>
-              <!-- Updated button for Delete -->
-              <button class="delete-button" data-team-id="{{ team_data.team_id }}">Delete</button>
-            </td>
-          </tr>
-        {% endfor %}
+       <!-- Inside the table in your HTML template -->
+{% for team_data in teams_data %}
+<tr>
+  <td>
+    <img src="{{ team_data.logo_url }}" alt="{{ team_data.team_name }} Logo" width="50" height="50">
+    {{ team_data.team_name }}
+  </td>
+  <td>{{ team_data.position_points }}</td>
+  <td>{{ team_data.finishes_points }}</td>
+  <td>{{ team_data.total_points }}</td>
+  <td>
+    <button class="delete-button" data-team-id="{{ team_data.team_id }}">Delete</button>
+  </td>
+</tr>
+{% endfor %}
+
       </tbody>
     </table>
   </div>
