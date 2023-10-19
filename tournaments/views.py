@@ -270,13 +270,19 @@ def get_teams_data(tournament, match_schedule, match_groups):
             'team_name': team.name,
             'position_points': match_result.position_points if match_result else 0,
             'finishes_points': match_result.finishes_points if match_result else 0,
-            'total_points': total_points
+            'total_points': total_points,
         })
 
-    # Sort the data by total points in descending order
-    teams_data.sort(key=lambda x: x['total_points'], reverse=True)
+    # Sort the data by total points in descending order, and then by other criteria
+    teams_data.sort(key=lambda x: (
+        -x['total_points'],           # Sort by total points (highest to lowest)
+        -x['position_points'],        # In case of a tie, sort by position points
+        -x['finishes_points']         # In case of a tie, sort by finishes points
+                  
+    ))
 
     return teams_data
+
 
 
 # Add this view to your views.py
