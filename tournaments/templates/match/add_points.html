@@ -21,6 +21,9 @@
     <input type="number" name="finishes_points" id="finishes_points">
 
     <button type="submit" id="save-points-button">Save Points</button>
+    <a href="{% url 'download_team_data_image' tournament_name=tournament.name match_number=match_schedule.match_number %}">Download Team Data Image</a>
+    <a href="{% url 'preview_team_data_image' tournament_name=tournament.name match_number=match_schedule.match_number %}">Preview Team Data Image</a>
+
   </form>
 
   <div>
@@ -54,76 +57,78 @@
   </div>
 </div>
 
+<!-- Display the team data image -->
+<img id="team-data-image" src="{% url 'download_team_data_image' tournament_name=tournament_name match_number=match_number %}" alt="Team Data Image">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <script>
-  // Use AJAX to submit the form and update the table
-  const form = document.getElementById('points-form');
-  const pointsTable = document.getElementById('points-table');
-  const savePointsButton = document.getElementById('save-points-button');
+// Use AJAX to submit the form and update the table
+const form = document.getElementById('points-form');
+const pointsTable = document.getElementById('points-table');
+const savePointsButton = document.getElementById('save-points-button');
+const dropdown = document.getElementById('selected_team');
 
-  form.addEventListener('submit', function (event) {
-    event.preventDefault();
+form.addEventListener('submit', function (event) {
+  event.preventDefault();
 
-    const selectedTeam = document.getElementById('selected_team').value;
-    const positionPoints = document.getElementById('position_points').value;
-    const finishesPoints = document.getElementById('finishes_points').value;
+  const selectedTeam = dropdown.value;
+  const positionPoints = document.getElementById('position_points').value;
+  const finishesPoints = document.getElementById('finishes_points').value;
 
-    if (!selectedTeam || !positionPoints || !finishesPoints) {
-      alert('Please fill in all fields.');
-      return;
-    }
+  if (!selectedTeam || !positionPoints || !finishesPoints) {
+    alert('Please fill in all fields.');
+    return;
+  }
 
-    const formData = new FormData(form);
+  const formData = new FormData(form);
 
-    fetch(form.action, {
-      method: 'POST',
-      body: formData,
-      headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
+  fetch(form.action, {
+    method: 'POST',
+    body: formData,
+    headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.error) {
+        alert(data.error);
+      } else {
+        // Update the table with sorted data
+        const tableBody = pointsTable.querySelector('tbody');
+        tableBody.innerHTML = '';
+
+        data.teams_data.forEach(teamData => {
+          const row = tableBody.insertRow();
+          row.innerHTML = `
+            <td>${teamData.team_name}</td>
+            <td>${teamData.position_points}</td>
+            <td>${teamData.finishes_points}</td>
+            <td>${teamData.total_points}</td>
+            <td>
+              <button class="delete-button" data-team-id="${teamData.team_id}">Delete</button>
+            </td>
+          `;
+        });
+
+        // Remove the entered team from the dropdown
+        dropdown.querySelector(`[value="${selectedTeam}"]`).remove();
+      }
     })
-      .then(response => response.json())
-      .then(data => {
-        if (data.error) {
-          alert(data.error);
-        } else {
-          // Update the table with sorted data
-          const tableBody = pointsTable.querySelector('tbody');
-          tableBody.innerHTML = '';
+    .catch(error => {
+      console.error('Error:', error);
+    });
+});
 
-          data.teams_data.forEach(teamData => {
-            const row = tableBody.insertRow();
-            row.innerHTML = `
-              <td>${teamData.team_name}</td>
-              <td>${teamData.position_points}</td>
-              <td>${teamData.finishes_points}</td>
-              <td>${teamData.total_points}</td>
-              <td>
-                <button class="delete-button" data-team-id="${teamData.team_id}">Delete</button>
-              </td>
-            `;
-          });
+// Add an event listener for the "Delete" buttons
+addDeleteButtonEventListeners();
 
-          // Remove the entered team from the dropdown
-          const dropdown = document.getElementById('selected_team');
-          const optionToRemove = dropdown.querySelector(`[value="${selectedTeam}"]`);
-          optionToRemove.remove();
+function addDeleteButtonEventListeners() {
+  pointsTable.addEventListener('click', (event) => {
+    if (event.target.classList.contains('delete-button')) {
+      const teamId = event.target.getAttribute('data-team-id');
+      console.log("Team ID:", teamId); // Check the team ID in the browser console
 
-          // Add an event listener for the "Delete" buttons again after updating the table
-          addDeleteButtonEventListeners();
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-      });
-  });
-
-  // Add an event listener for the "Delete" buttons
-  addDeleteButtonEventListeners();
-
-  function addDeleteButtonEventListeners() {
-    pointsTable.addEventListener('click', (event) => {
-      if (event.target.classList.contains('delete-button')) {
-        const teamId = event.target.getAttribute('data-team-id');
-        console.log("Team ID:", teamId); // Check the team ID in the browser console
-
+      const shouldDelete = confirm('Do you want to delete this team?');
+      if (shouldDelete) {
         // Send an AJAX request to delete the team's scores
         fetch(`/delete_team_scores/${teamId}/`, {
           method: 'POST',
@@ -142,12 +147,33 @@
             console.error('Error:', error);
           });
       }
+    }
+  });
+}
+
+// Function to update the image
+function updateTeamDataImage() {
+    // Make an AJAX request to get the latest image data
+    $.ajax({
+      url: '{% url "preview_team_data_image" tournament_name=tournament.name match_number=match_schedule.match_number %}',
+      type: 'GET',
+      success: function(data) {
+        // Update the src attribute of the img element
+        $('#team-data-image').attr('src', 'data:image/png;base64,' + data.image_data);
+      },
+      error: function() {
+        console.log('Failed to update the team data image.');
+      }
     });
   }
 
-  function getCSRFToken() {
-    const csrfCookie = document.cookie.split("; ").find((cookie) => cookie.startsWith("csrftoken="));
-    return csrfCookie ? csrfCookie.split("=")[1] : "";
-  }
+  // Periodically call the update function (e.g., every 5 seconds)
+  setInterval(updateTeamDataImage, 5000); // Update every 5 seconds
+
+function getCSRFToken() {
+  const csrfCookie = document.cookie.split("; ").find((cookie) => cookie.startsWith("csrftoken="));
+  return csrfCookie ? csrfCookie.split("=")[1] : "";
+}
+
 </script>
 {% endblock %}

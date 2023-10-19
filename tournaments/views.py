@@ -9,6 +9,10 @@ from django.urls import reverse
 from django.db.models import F,Q
 import json
 from django.template.context_processors import csrf
+from PIL import Image, ImageDraw, ImageFont
+from django.db.models import Sum
+from django.db.models import Subquery
+import io,os
 
 
 
@@ -233,8 +237,8 @@ def add_points_to_teams(request, tournament_name, match_number):
             tournament=tournament,
             team=selected_team,
             match_schedule=match_schedule,
-            finishes_points = 0,
-            position_points = 0
+            finishes_points=0,
+            position_points=0
         )
         match_result.position_points = int(position_points)
         match_result.finishes_points = int(finishes_points)
@@ -249,7 +253,17 @@ def add_points_to_teams(request, tournament_name, match_number):
     # If it's not a POST request, return the initial page with data
     teams = Team.objects.filter(groups__in=match_groups).distinct()
 
-    return render(request, 'match/add_points.html', {'teams': teams, 'teams_data': teams_data})
+    context = {
+        'teams': teams,
+        'teams_data': teams_data,
+        'tournament': tournament,
+        'match_schedule': match_schedule,
+        'match_groups': match_groups,
+        'tournament_name': tournament_name,
+        'match_number':match_number
+    }
+
+    return render(request, 'match/add_points.html', context)
 
 def get_teams_data(tournament, match_schedule, match_groups):
     # Retrieve and sort the data as needed
@@ -270,14 +284,151 @@ def get_teams_data(tournament, match_schedule, match_groups):
             'team_name': team.name,
             'position_points': match_result.position_points if match_result else 0,
             'finishes_points': match_result.finishes_points if match_result else 0,
-            'total_points': total_points
+            'total_points': total_points,
+            
         })
 
-    # Sort the data by total points in descending order
-    teams_data.sort(key=lambda x: x['total_points'], reverse=True)
+    # Sort the data by total points in descending order, and then by other criteria
+    teams_data.sort(key=lambda x: (
+        -x['total_points'],           # Sort by total points (highest to lowest)
+        -x['position_points'],        # In case of a tie, sort by position points
+        -x['finishes_points'],        # In case of a tie, sort by finishes points
+                         
+    ))
 
     return teams_data
 
+
+def download_team_data_image(request, tournament_name, match_number):
+    # Retrieve 'tournament' and 'match_schedule' using their names and values
+    tournament = get_object_or_404(Tournament, name=tournament_name)
+    match_schedule = get_object_or_404(MatchSchedule, match_number=match_number, tournament=tournament)
+
+    # Fetch and order teams and their match results
+    teams_data = get_teams_data(tournament, match_schedule, match_schedule.groups.all())
+
+    # Define image template path, font path, and font settings
+    image_path = "template.jpg"
+    font_path = "SCHABO-Condensed.otf"
+    font_size = 25
+    letter_spacing = 16.8
+
+    # Define the image coordinate settings
+    coordinates = {
+        'team_name_x': 331,
+        'finishes_points_x': 538,
+        'position_points_x': 646,
+        'wins_x': 730,
+        'total_points_x': 824,
+        'vertical_spacing': 58,
+        'team_name_y': 460  # Initial position for the first team's name
+    }
+
+    # Create an RGBA image
+    image = Image.open(image_path).convert("RGBA")
+    draw = ImageDraw.Draw(image)
+
+    # Load the font
+    font = ImageFont.truetype(font_path, size=font_size)
+
+    for team_data in teams_data:
+        # Draw team name with letter spacing
+        text = f"{team_data['team_name']}"
+        draw.text((coordinates['team_name_x'], coordinates['team_name_y']), text, fill="white", font=font, spacing=letter_spacing)
+
+        # Draw other fields (e.g., position points, finishes points, total points)
+        fields = ['position_points', 'finishes_points', 'total_points']
+        for field in fields:
+            x = coordinates[f'{field}_x']
+            y = coordinates['team_name_y']
+            text = f"{team_data[field]}"
+            draw.text((x, y), text, fill="white", font=font, spacing=letter_spacing)
+
+        # Increment the y-coordinate for vertical spacing
+        coordinates['team_name_y'] += coordinates['vertical_spacing']
+
+    # Create an HttpResponse with image content
+    response = HttpResponse(content_type="image/png")
+    image.save(response, "PNG", quality=95)  # Maintain clarity with high quality
+
+    # Set a filename for the downloaded image
+    response["Content-Disposition"] = 'attachment; filename="team_data_image.png"'
+
+    return response
+
+import base64
+from django.core.files.base import ContentFile
+
+def encode_image_as_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        data = base64.b64encode(image_file.read()).decode("utf-8")
+    return data
+
+def preview_team_data_image(request, tournament_name, match_number):
+    # Retrieve 'tournament' and 'match_schedule' using their names and values
+    tournament = get_object_or_404(Tournament, name=tournament_name)
+    match_schedule = get_object_or_404(MatchSchedule, match_number=match_number, tournament=tournament)
+
+    # Fetch and order teams and their match results
+    teams_data = get_teams_data(tournament, match_schedule, match_schedule.groups.all())
+
+    # Define image template path, font path, and font settings
+    image_path = "template.jpg"
+    font_path = "SCHABO-Condensed.otf"
+    font_size = 25
+    letter_spacing = 16.8
+
+    # Define the image coordinate settings
+    coordinates = {
+        'team_name_x': 331,
+        'finishes_points_x': 538,
+        'position_points_x': 646,
+        'wins_x': 730,
+        'total_points_x': 824,
+        'vertical_spacing': 58,
+        'team_name_y': 460  # Initial position for the first team's name
+    }
+
+    # Create an RGBA image
+    image = Image.open(image_path).convert("RGBA")
+    draw = ImageDraw.Draw(image)
+
+    # Load the font
+    font = ImageFont.truetype(font_path, size=font_size)
+
+    for team_data in teams_data:
+        # Draw team name with letter spacing
+        text = f"{team_data['team_name']}"
+        draw.text((coordinates['team_name_x'], coordinates['team_name_y']), text, fill="white", font=font, spacing=letter_spacing)
+
+        # Draw other fields (e.g., position points, finishes points, total points)
+        fields = ['position_points', 'finishes_points', 'total_points']
+        for field in fields:
+            x = coordinates[f'{field}_x']
+            y = coordinates['team_name_y']
+            text = f"{team_data[field]}"
+            draw.text((x, y), text, fill="white", font=font, spacing=letter_spacing)
+
+        # Increment the y-coordinate for vertical spacing
+        coordinates['team_name_y'] += coordinates['vertical_spacing']
+
+    # Save the image to a temporary buffer
+    image_buffer = io.BytesIO()
+    image.save(image_buffer, format="PNG")
+    image_buffer.seek(0)
+
+    image_data = encode_image_as_base64(image_path)
+    context = {
+        'tournament_name': tournament_name,
+        'match_number': match_number,
+        'image_data': image_data,
+    }
+    return render(request, 'images/preview.html', context)
+
+
+def create_tournament(request):
+    # Implement the logic to create tournaments here
+    return render(request, 'create_tournament.html')
 
 # Add this view to your views.py
 def delete_team_scores(request, team_id):
