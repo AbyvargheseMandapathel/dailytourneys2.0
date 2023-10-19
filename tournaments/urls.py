@@ -16,6 +16,6 @@ urlpatterns = [
     # path('<str:tournament_name>/<int:match_number>/add_points/', views.add_points_to_teams, name='add_points_to_teams'),
     path('<str:tournament_name>/<int:match_number>/add_points/', views.add_points_to_teams, name='add_points_to_teams'),
     # path('update_match_card/<int:match_schedule_id>/', views.update_match_card, name='update_match_card'),
-
+    path('delete_team_scores/<int:team_id>/', views.delete_team_scores, name='delete_team_scores'),
     # Other app-specific URLs can be added here
 ]

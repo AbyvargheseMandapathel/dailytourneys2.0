@@ -266,6 +266,7 @@ def get_teams_data(tournament, match_schedule, match_groups):
             total_points = 0
 
         teams_data.append({
+            'team_id': team.id,
             'team_name': team.name,
             'position_points': match_result.position_points if match_result else 0,
             'finishes_points': match_result.finishes_points if match_result else 0,
@@ -276,6 +277,23 @@ def get_teams_data(tournament, match_schedule, match_groups):
     teams_data.sort(key=lambda x: x['total_points'], reverse=True)
 
     return teams_data
+
+
+# Add this view to your views.py
+def delete_team_scores(request, team_id):
+    try:
+        # Assuming you have a Team model, you can retrieve the team by its ID
+        team = Team.objects.get(id=team_id)
+
+        # Delete the team's scores (MatchResult instances)
+        MatchResult.objects.filter(team=team).delete()
+
+        # You can return a success message if needed
+        return JsonResponse({'success': 'Scores deleted successfully'})
+    except Team.DoesNotExist:
+        return JsonResponse({'error': 'Team not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 def create_tournament(request):
     # Implement the logic to create tournaments here

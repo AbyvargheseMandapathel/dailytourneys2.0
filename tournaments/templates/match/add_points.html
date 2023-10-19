@@ -33,7 +33,7 @@
           <th>Position Points</th>
           <th>Finishes Points</th>
           <th>Total Points</th>
-          <th>Edit</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
@@ -44,7 +44,8 @@
             <td>{{ team_data.finishes_points }}</td>
             <td>{{ team_data.total_points }}</td>
             <td>
-              <button class="edit-button" data-team-id="{{ team_data.team_id }}">Edit</button>
+              <!-- Updated button for Delete -->
+              <button class="delete-button" data-team-id="{{ team_data.team_id }}">Delete</button>
             </td>
           </tr>
         {% endfor %}
@@ -95,7 +96,7 @@
               <td>${teamData.finishes_points}</td>
               <td>${teamData.total_points}</td>
               <td>
-                <button class="edit-button" data-team-id="${teamData.team_id}">Edit</button>
+                <button class="delete-button" data-team-id="${teamData.team_id}">Delete</button>
               </td>
             `;
           });
@@ -104,6 +105,9 @@
           const dropdown = document.getElementById('selected_team');
           const optionToRemove = dropdown.querySelector(`[value="${selectedTeam}"]`);
           optionToRemove.remove();
+
+          // Add an event listener for the "Delete" buttons again after updating the table
+          addDeleteButtonEventListeners();
         }
       })
       .catch(error => {
@@ -111,13 +115,39 @@
       });
   });
 
-  // Add an event listener for the "Edit" buttons
-  pointsTable.addEventListener('click', (event) => {
-    if (event.target.classList.contains('edit-button')) {
-      const teamId = event.target.getAttribute('data-team-id');
-      // You can implement the edit functionality here
-      alert(`Editing team with ID: ${teamId}`);
-    }
-  });
+  // Add an event listener for the "Delete" buttons
+  addDeleteButtonEventListeners();
+
+  function addDeleteButtonEventListeners() {
+    pointsTable.addEventListener('click', (event) => {
+      if (event.target.classList.contains('delete-button')) {
+        const teamId = event.target.getAttribute('data-team-id');
+        console.log("Team ID:", teamId); // Check the team ID in the browser console
+
+        // Send an AJAX request to delete the team's scores
+        fetch(`/delete_team_scores/${teamId}/`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCSRFToken() }
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Refresh or update the view as needed
+              location.reload(); // Refresh the page in this example
+            } else if (data.error) {
+              alert(data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+          });
+      }
+    });
+  }
+
+  function getCSRFToken() {
+    const csrfCookie = document.cookie.split("; ").find((cookie) => cookie.startsWith("csrftoken="));
+    return csrfCookie ? csrfCookie.split("=")[1] : "";
+  }
 </script>
 {% endblock %}
