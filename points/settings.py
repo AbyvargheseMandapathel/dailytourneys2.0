@@ -137,7 +137,8 @@ LOGOUT_REDIRECT_URL = '/'  # Replace with the URL of your login page
 CSRF_TRUSTED_ORIGINS = ['https://fe9a-103-159-151-109.ngrok-free.app']
 
 
-MEDIA_URL = '/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'  # The URL where media files will be served from
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # The absolute file system path to your media directory
+
 
 

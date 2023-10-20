@@ -315,15 +315,19 @@ def download_team_data_image(request, tournament_name, match_number):
     font_size = 25
     letter_spacing = 16.8
 
-    # Define the image coordinate settings
+    # Define the image coordinate settings as per the sample code
     coordinates = {
         'team_name_x': 331,
-        'finishes_points_x': 538,
-        'position_points_x': 646,
-        'wins_x': 730,
-        'total_points_x': 824,
+        'team_name_y': 460,  # Initial position for the first team's name (same as sample code)
+        'logo_x': 252,  # Initial position for the first team's logo (same as sample code)
+        'logo_y':454,
+        'boundary_left': 252,
+        'boundary_right': 316,
+        'boundary_top': 444,
+        'boundary_bottom': 498,
         'vertical_spacing': 58,
-        'team_name_y': 460  # Initial position for the first team's name
+        'max_logo_width': 50,  # Maximum allowable logo width (same as sample code)
+        'max_logo_height': 40,  # Maximum allowable logo height (same as sample code)
     }
 
     # Create an RGBA image
@@ -334,20 +338,58 @@ def download_team_data_image(request, tournament_name, match_number):
     font = ImageFont.truetype(font_path, size=font_size)
 
     for team_data in teams_data:
+        # Retrieve the 'team' object using its ID or another unique identifier
+        team = get_object_or_404(Team, id=team_data['team_id'])  # You may need to adjust this based on your data
+
+        # Load the team logo
+        team_logo = team.logo
+        logo = Image.open(team_logo.path).convert("RGBA")  # Convert to RGBA mode
+
+        # Ensure the output format is RGBA
+        if logo.mode != 'RGBA':
+            logo = logo.convert("RGBA")
+
+        # Calculate the new dimensions to fit within the specified boundary while maintaining aspect ratio
+        width, height = logo.size
+        aspect_ratio = width / height
+
+        # Check if the logo height is too close to the boundary (adjust the percentage as needed)
+        min_allowed_height = coordinates['max_logo_height'] * 0.2
+        if height > min_allowed_height:
+            if width > coordinates['max_logo_width']:
+                width = coordinates['max_logo_width']
+                height = int(width / aspect_ratio)
+            if height > coordinates['max_logo_height']:
+                height = coordinates['max_logo_height']
+                width = int(height * aspect_ratio)
+
+        # Resize the logo to fit within the boundary
+        logo = logo.resize((width, height), Image.LANCZOS)
+
+        # Calculate the position to center the logo
+        x = coordinates['logo_x'] + (coordinates['max_logo_width'] - width) // 2
+        y = coordinates['logo_y'] + (coordinates['max_logo_height'] - height) // 2
+
+        # Paste the logo onto the image with transparency at the calculated position
+        image.paste(logo, (x, y), logo)
+
         # Draw team name with letter spacing
         text = f"{team_data['team_name']}"
         draw.text((coordinates['team_name_x'], coordinates['team_name_y']), text, fill="white", font=font, spacing=letter_spacing)
 
-        # Draw other fields (e.g., position points, finishes points, total points)
-        fields = ['position_points', 'finishes_points', 'total_points']
-        for field in fields:
-            x = coordinates[f'{field}_x']
-            y = coordinates['team_name_y']
-            text = f"{team_data[field]}"
-            draw.text((x, y), text, fill="white", font=font, spacing=letter_spacing)
+        # Set the coordinates for other elements
+        wins_x = 531
+        other_elements_coords = (wins_x, coordinates['team_name_y'])  # Wins, TP, PP, FP at the same y-coordinate as the logo
 
-        # Increment the y-coordinate for vertical spacing
+        # Draw other elements like Wins, TP, PP, FP
+        elements = [f"{team_data['total_points']}", f"{team_data['position_points']}", f"{team_data['finishes_points']}"]
+        for element in elements:
+            draw.text(other_elements_coords, element, fill="white", font=font, spacing=letter_spacing)
+            other_elements_coords = (other_elements_coords[0] + 150, other_elements_coords[1])  # Adjust x-coordinate for the next element
+
+        # Update the y-coordinate for the next team (58 pixels below the current one)
         coordinates['team_name_y'] += coordinates['vertical_spacing']
+        coordinates['logo_y'] += coordinates['vertical_spacing']
 
     # Create an HttpResponse with image content
     response = HttpResponse(content_type="image/png")
