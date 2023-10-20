@@ -1,18 +1,93 @@
-<!-- tournaments/templates/tournaments/registration/login.html -->
-
 {% extends 'base.html' %}
 
 {% block content %}
-  <h2>Login</h2>
-  <form method="post">
-    {% csrf_token %}
-    <label for="username">Username:</label>
-    <input type="text" id="username" name="username" required><br>
+  <style>
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
 
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required><br>
+    .login-container {
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 400px;
+      text-align: center;
+    }
 
-    <button type="submit">Login</button>
-  </form>
-  <p>Don't have an account? <a href="{% url 'register' %}">Sign up</a></p>
+    h2 {
+      color: #ff0;
+    }
+
+    form {
+      margin-top: 20px;
+    }
+
+    label {
+      color: #ff0;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input {
+      background-color: #222;
+      border: 1px solid #ff0;
+      color: #fff;
+      padding: 8px;
+      width: 100%;
+      margin-bottom: 15px;
+      border-radius: 5px;
+    }
+
+    input::placeholder {
+      color: #ff0;
+    }
+
+    button {
+      background-color: #ff0;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    button:hover {
+      background-color: #000;
+      color: #ff0;
+    }
+
+    p {
+      margin-top: 10px;
+      color: #ff0;
+    }
+
+    a {
+      color: #ff0;
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    a:hover {
+      color: #fff;
+    }
+  </style>
+
+  <div class="login-container">
+    <h2>Login</h2>
+    <form method="post">
+      {% csrf_token %}
+      <label for="username">Username:</label>
+      <input type="text" id="username" name="username" required>
+
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required>
+
+      <button type="submit">Login</button>
+    </form>
+    <p>Don't have an account? <a href="{% url 'register' %}">Sign up</a></p>
+  </div>
 {% endblock %}
