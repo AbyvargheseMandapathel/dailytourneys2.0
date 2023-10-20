@@ -4,34 +4,29 @@
   <h2>Welcome, {{ user.username }}</h2>
 
   <h3>Your Tournaments:</h3>
-  <ul>
+  <div class="row">
     {% for tournament in user_tournaments %}
-      <li>
-        <strong>{{ tournament.name }}</strong><br>
-        Number of Teams: {{ tournament.no_of_teams }}<br>
-        Number of Matches: {{ tournament.no_of_matches }}<br>
-        Number of Teams per Group: {{ tournament.no_of_teams_per_group }}
-        <br>
-        <!-- Add a button to view standings for this tournament -->
-        <form action="{% url 'team_standings' tournament_name=tournament.name %}" method="post">
-          {% csrf_token %}
-          <button type="submit">View Standings</button>
-        </form>
-      </li>
+      <div class="col-md-4">
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5 class="card-title" style="color: #000;">{{ tournament.name }}</h5>
+            <p class="card-text" style="color: #000;">Number of Teams: {{ tournament.no_of_teams }}</p>
+            <p class="card-text" style="color: #000;">Number of Matches: {{ tournament.no_of_matches }}</p>
+            <p class="card-text" style="color: #000;">Number of Teams per Group: {{ tournament.no_of_teams_per_group }}</p>
+            <form action="{% url 'update_standings' tournament_name=tournament.name %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-primary">Update Standings</button>
+            </form>
+          </div>
+        </div>
+      </div>
     {% empty %}
-      <p>You haven't created any tournaments yet.</p>
+      <p style="color: #000;">You haven't created any tournaments yet.</p>
     {% endfor %}
-  </ul>
-
-  <!-- Add buttons for updating standings and creating tournaments -->
-  <form action="{% url 'update_standings' %}" method="post">
-    {% csrf_token %}
-    <button type="submit">Update Standings</button>
-  </form>
+  </div>
 
   <form action="{% url 'create_tournament' %}" method="post">
     {% csrf_token %}
-    <button type="submit">Create Tournament</button>
+    <button type="submit" class="btn btn-success">Create Tournament</button>
   </form>
-</div>
 {% endblock %}

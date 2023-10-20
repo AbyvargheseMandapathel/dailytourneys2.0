@@ -1,26 +1,83 @@
 {% block content %}
-<form method="post">
-    {% csrf_token %}
-    <!-- Match Number (disabled input field) -->
-    <p>Match No: <input type="text" name="match_number" value="{{ match_schedule.match_number }}" disabled></p>
+<style>
+  body {
+    background-color: #f2f2f2;
+  }
 
-   <!-- Winner Name (dropdown) -->
-<!-- Winner Name (dropdown) -->
-<p>Winner Name:
-    <select name="winner_name">
-        {% for team in teams_in_match_groups %}
+  .container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .form-container {
+    background-color: #fff;
+    border-radius: 5px;
+    padding: 20px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .form-label {
+    font-weight: bold;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+
+  .btn {
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+  }
+
+  .btn:hover {
+    background-color: #0056b3;
+  }
+</style>
+
+<div class="container">
+  <div class="form-container">
+    <h2 class="text-center" style="color: #000;">Set Winner</h2>
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label for="match-number" class="form-label">Match No:</label>
+        <input type="text" name="match_number" value="{{ match_schedule.match_number }}" class="form-control" disabled>
+      </div>
+
+      <div class="form-group">
+        <label for="winner-name" class="form-label">Winner Name:</label>
+        <select name="winner_name" class="form-control">
+          {% for team in teams_in_match_groups %}
             <option value="{{ team.name }}" {% if match_schedule.winning_team.name == team.name %}selected{% endif %}>
-                {{ team.name }}
+              {{ team.name }}
             </option>
-        {% endfor %}
-    </select>
-</p>
+          {% endfor %}
+        </select>
+      </div>
 
+      <div class="form-group">
+        <label for="kills" class="form-label">Kills:</label>
+        <input type="text" name="kills" value="{{ match_schedule.kills }}" class="form-control">
+      </div>
 
-    <!-- Kills -->
-    <p>Kills: <input type="text" name="kills" value="{{ match_schedule.kills }}"></p>
-
-    <!-- Button to set winner -->
-    <button type="submit">Set Winner</button>
-</form>
+      <button type="submit" class="btn btn-primary">Set Winner</button>
+    </form>
+  </div>
+</div>
 {% endblock %}

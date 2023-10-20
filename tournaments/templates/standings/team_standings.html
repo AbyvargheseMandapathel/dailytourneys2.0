@@ -2,30 +2,150 @@
 <html>
 <head>
     <title>Team Standings</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #333;
+        }
+
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            background-color: #fff;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #333;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #ddd;
+        }
+
+        a {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #333;
+            color: white;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+
+        a:hover {
+            background-color: #555;
+        }
+
+        /* CSS transition for table rows */
+        tr {
+            transition: background-color 0.5s, transform 0.5s;
+        }
+
+        /* Animation for table rows */
+        @keyframes drag-and-drop {
+            0% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-10px);
+            }
+            50% {
+                transform: translateX(10px);
+            }
+            75% {
+                transform: translateX(-5px);
+            }
+            100% {
+                transform: translateX(5px);
+            }
+        }
+
+        .drag-animation {
+            animation: drag-and-drop 2s ease-in-out;
+        }
+    </style>
 </head>
 <body>
     <h1>Team Standings</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Team</th>
-                <th>Total Points</th>
-                <th>Position Points</th>
-                <th>Finishes Points</th>
-                <th>Total Wins</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for team in teams %}
+    <div id="team-standings-table-container">
+        <table id="team-standings-table">
+            <thead>
                 <tr>
-                    <td>{{ team.team.name }}</td>
-                    <td>{{ team.total_points }}</td>
-                    <td>{{ team.total_position_points }}</td>
-                    <td>{{ team.total_finishes_points }}</td>
-                    <td>{{ team.total_wins }}</td>
+                    <th>Team</th>
+                    <th>Total Points</th>
+                    <th>Position Points</th>
+                    <th>Finishes Points</th>
+                    <th>Total Wins</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for team in teams %}
+                    <tr>
+                        <td>{{ team.team.name }}</td>
+                        <td>{{ team.total_points }}</td>
+                        <td>{{ team.total_position_points }}</td>
+                        <td>{{ team.total_finishes_points }}</td>
+                        <td>{{ team.total_wins }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p><a href="{% url 'generate_team_standings_poster' tournament_name %}">Download Poster</a></p>
+    <a href="{% url 'custom_template' tournament_name %}">Custom Template</a>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        function updateTable() {
+            $.ajax({
+                url: "{% url 'team_standings_json' tournament_name %}",
+                type: "GET",
+                dataType: "json",
+                success: function(data) {
+                    const table = $("#team-standings-table tbody");
+                    const teamData = data.team_data;
+
+                    // Iterate through the rows and update the data with a "drag and drop" animation
+                    table.find("tr").each(function(index, row) {
+                        const team = teamData[index];
+                        const tds = $(row).find("td");
+
+                        // Add a class to trigger the "drag and drop" animation
+                        $(row).addClass("drag-animation");
+
+                        // Update the row content
+                        tds.eq(0).text(team.name);
+                        tds.eq(1).text(team.total_points);
+                        tds.eq(2).text(team.total_position_points);
+                        tds.eq(3).text(team.total_finishes_points);
+                        tds.eq(4).text(team.total_wins);
+                    });
+                },
+                error: function(error) {
+                    console.error("Error fetching data:", error);
+                }
+            });
+        }
+    
+        // Call updateTable function periodically (e.g., every 5 seconds)
+        setInterval(updateTable, 5000);
+    </script>
 </body>
 </html>

@@ -68,10 +68,124 @@ def team_standings(request, tournament_name):
 
     return render(request, 'standings/team_standings.html', {'teams': teams, 'tournament_name': tournament_name})
 
+def team_standings_json(request, tournament_name):
+    # Retrieve team data and sort it based on criteria for the specified tournament
+    teams = OverallStandings.objects.filter(tournament__name=tournament_name).order_by(
+        '-total_points', '-total_position_points', '-total_finishes_points', '-total_wins'
+    )
 
-def update_standings(request):
-    # Retrieve the tournament and match schedule information
-    tournament = Tournament.objects.get(user=request.user)  # Replace with your own logic to get the tournament
+    # Convert team data to a JSON-friendly format
+    team_data = [{'name': team.team.name, 'total_points': team.total_points, 'total_position_points': team.total_position_points,
+                  'total_finishes_points': team.total_finishes_points, 'total_wins': team.total_wins} for team in teams]
+
+    return JsonResponse({'team_data': team_data})
+
+def generate_team_standings_poster(request, tournament_name):
+    # Retrieve team data and sort it based on criteria for the specified tournament
+    teams = OverallStandings.objects.filter(tournament__name=tournament_name).order_by(
+        '-total_points',
+        '-total_position_points',
+        '-total_finishes_points',
+        '-total_wins'
+    )
+
+    # Define image template path, font path, and font settings
+    image_path = "template.jpg"
+    font_path = "SCHABO-Condensed.otf"
+    font_size = 25
+    letter_spacing = 16.8
+
+    # Define the image coordinate settings to match 'download_team_data_image'
+    coordinates = {
+        'team_name_x': 331,
+        'team_name_y': 460,  # Initial position for the first team's name (same as sample code)
+        'logo_x': 252,  # Initial position for the first team's logo (same as sample code)
+        'logo_y':454,
+        'boundary_left': 252,
+        'boundary_right': 316,
+        'boundary_top': 444,
+        'boundary_bottom': 498,
+        'vertical_spacing': 58,
+        'max_logo_width': 50,  # Maximum allowable logo width (same as sample code)
+        'max_logo_height': 40,  # Maximum allowable logo height (same as sample code)
+    }
+
+    # Create an RGBA image
+    image = Image.open(image_path).convert("RGBA")
+    draw = ImageDraw.Draw(image)
+
+    # Load the font
+    font = ImageFont.truetype(font_path, size=font_size)
+
+    for team in teams:
+        # Load the team logo
+        team_logo = team.team.logo
+        logo = Image.open(team_logo.path).convert("RGBA")  # Convert to RGBA mode
+
+        # Ensure the output format is RGBA
+        if logo.mode != 'RGBA':
+            logo = logo.convert("RGBA")
+
+        # Calculate the new dimensions to fit within the specified boundary while maintaining aspect ratio
+        width, height = logo.size
+        aspect_ratio = width / height
+
+        # Check if the logo height is too close to the boundary (adjust the percentage as needed)
+        min_allowed_height = coordinates['max_logo_height'] * 0.2
+        if height > min_allowed_height:
+            if width > coordinates['max_logo_width']:
+                width = coordinates['max_logo_width']
+                height = int(width / aspect_ratio)
+            if height > coordinates['max_logo_height']:
+                height = coordinates['max_logo_height']
+                width = int(height * aspect_ratio)
+
+        # Resize the logo to fit within the boundary
+        logo = logo.resize((width, height), Image.LANCZOS)
+
+        # Calculate the position to center the logo
+        x = coordinates['logo_x'] + (coordinates['max_logo_width'] - width) // 2
+        y = coordinates['logo_y'] + (coordinates['max_logo_height'] - height) // 2
+
+        # Paste the logo onto the image with transparency at the calculated position
+        image.paste(logo, (x, y), logo)
+
+        # Draw team name with letter spacing
+        text = f"{team.team.name}"
+        draw.text((coordinates['team_name_x'], coordinates['team_name_y']), text, fill="white", font=font, spacing=letter_spacing)
+
+        # Set the coordinates for other elements
+        wins_x = 531
+        other_elements_coords = (wins_x, coordinates['team_name_y'])  # Wins, TP, PP, FP at the same y-coordinate as the logo
+
+        # Draw other elements like Wins, TP, PP, FP
+        elements = [
+            f"{team.total_points}",
+            f"{team.total_position_points}",
+            f"{team.total_finishes_points}"
+        ]
+        for element in elements:
+            draw.text(other_elements_coords, element, fill="white", font=font, spacing=letter_spacing)
+            other_elements_coords = (other_elements_coords[0] + 150, other_elements_coords[1])  # Adjust x-coordinate for the next element
+
+        # Update the y-coordinate for the next team (58 pixels below the current one)
+        coordinates['team_name_y'] += coordinates['vertical_spacing']
+        coordinates['logo_y'] += coordinates['vertical_spacing']
+
+    # Create an HttpResponse with image content
+    response = HttpResponse(content_type="image/png")
+    image.save(response, "PNG", quality=95)  # Maintain clarity with high quality
+
+    # Set a filename for the downloaded image
+    response["Content-Disposition"] = 'attachment; filename="team_standings.png"'
+
+    return response
+
+def update_standings(request, tournament_name):
+    # Retrieve the tournament based on the provided name
+    tournament = get_object_or_404(Tournament, name=tournament_name, user=request.user)
+
+    # Retrieve the match schedule information for the selected tournament
     match_schedules = MatchSchedule.objects.filter(tournament=tournament)
 
     # Check if the number of match schedules matches the defined no_of_matches
@@ -493,3 +607,73 @@ def delete_team_scores(request, team_id):
 def create_tournament(request):
     # Implement the logic to create tournaments here
     return render(request, 'create_tournament.html')
+
+
+def custom_template_view(request, tournament_name):
+    # Number of teams per section
+    num_teams_per_section = 8
+
+    # Retrieve team data and sort it based on criteria for the specified tournament
+    teams = OverallStandings.objects.filter(tournament__name=tournament_name).order_by(
+        '-total_points',
+        '-total_position_points',
+        '-total_finishes_points',
+        '-total_wins'
+    )
+
+    # Define image template path, font path, and font settings
+    image_path = "download.png"
+    font_path = "SCHABO-Condensed.otf"
+    font_size = 20
+    letter_spacing = 16.8
+
+    # Define the image coordinate settings
+    coordinates = {
+        'team_name_x': 74,
+        'team_name_y_first': 547,  # Y-coordinate for the first team's name
+        'team_name_y_spacing': 52,  # Vertical spacing for team names
+        'team_name_x_alternate': 428,
+        'position_x': 241,  # X-coordinate for position points
+        'position_x_alternate': 597,
+        'finishes_x': 279,  # X-coordinate for finishes points
+        'finishes_x_alternate': 636,
+    }
+
+    # Create an RGBA image
+    image = Image.open(image_path).convert("RGBA")
+    draw = ImageDraw.Draw(image)
+
+    # Load the font
+    font = ImageFont.truetype(font_path, size=font_size)
+
+    for idx, team in enumerate(teams):
+        # Calculate y based on the team's position within the sorted list
+        y = coordinates['team_name_y_first'] + (idx % num_teams_per_section) * coordinates['team_name_y_spacing']
+        x = coordinates['team_name_x' if idx < num_teams_per_section else 'team_name_x_alternate']
+
+        # Draw team name with letter spacing
+        text = f"{team.team.name}"
+        draw.text((x, y), text, fill="white", font=font, spacing=letter_spacing)
+
+        # Add position points next to the team name
+        position_x = coordinates['position_x' if idx < num_teams_per_section else 'position_x_alternate']
+        position_points = f"{team.total_position_points}"
+        draw.text((position_x, y), position_points, fill="white", font=font, spacing=letter_spacing)
+
+        # Add finishes points next to the team name
+        finishes_x = coordinates['finishes_x' if idx < num_teams_per_section else 'finishes_x_alternate']
+        finishes_points = f"{team.total_finishes_points}"
+        draw.text((finishes_x, y), finishes_points, fill="white", font=font, spacing=letter_spacing)
+
+    # Create an HttpResponse with image content
+    response = HttpResponse(content_type="image/png")
+    image.save(response, "PNG", quality=95)  # Maintain clarity with high quality
+
+    # Set a filename for the downloaded image
+    response["Content-Disposition"] = 'attachment; filename="team_info.png"'
+
+    return response
+
+
+
+

@@ -8,17 +8,17 @@
     {% for match_schedule in match_schedules %}
       <li class="card">
         <div class="card-content">
-          <p>Match No: {{ match_schedule.match_number }}</p>
-          <p>Map: {{ match_schedule.map }}</p>
-          <p>Winner Name: {{ match_schedule.winning_team.name }}</p>
-          <p>Group: {{ match_schedule.groups.all.0.name }} x {{ match_schedule.groups.all.1.name }}</p>
+          <p style="color: #000;">Match No: {{ match_schedule.match_number }}</p>
+          <p style="color: #000;">Map: {{ match_schedule.map }}</p>
+          <p style="color: #000;">Winner Name: {{ match_schedule.winning_team.name }}</p>
+          <p style="color: #000;">Group: {{ match_schedule.groups.all.0.name }} x {{ match_schedule.groups.all.1.name }}</p>
           <form method="post" action="{% url 'update_match' match_schedule.id %}">
             {% csrf_token %}
-            <button type="submit">Update Match</button>
+            <button type="submit" class="btn btn-primary">Update Match</button>
           </form>
         </div>
       </li>
-      {% if forloop.counter|divisibleby:6 %}</ul><ul class="card-list">{% endif %}
+      {% if forloop.counter|divisibleby:3 %}</ul><ul class="card-list">{% endif %}
     {% endfor %}
   </ul>
 </div>
@@ -31,7 +31,7 @@
 
   .card {
     float: left;
-    width: calc(16.66667% - 10px); /* 6 cards in a row with 10px margin */
+    width: calc(33.33% - 10px); /* 3 cards in a row with 10px margin */
     margin-right: 10px;
     margin-bottom: 10px;
   }
@@ -39,6 +39,7 @@
   .card-content {
     border: 1px solid #ccc;
     padding: 10px;
+    background-color: #fff;
   }
 </style>
 {% endblock %}
