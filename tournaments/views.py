@@ -57,26 +57,125 @@ def profile(request):
     }
     return render(request, 'registration/profile.html', context)
 
+
+# Define a helper function to calculate team-specific data
+def is_ajax(request):
+    return request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+
 def team_standings(request, tournament_name):
-    # Retrieve team data and sort it based on criteria for the specified tournament
-    teams = OverallStandings.objects.filter(tournament__name=tournament_name).order_by(
-        '-total_points',  # Sort by total points (highest to lowest)
-        '-total_position_points',  # In case of a tie, sort by position points
-        '-total_finishes_points',  # In case of a tie, sort by finishes points
-        '-total_wins'  # In case of a tie, sort by total wins
+    try:
+        tournament = Tournament.objects.get(name=tournament_name)
+        teams = Team.objects.filter(tournaments=tournament)
+        
+        # Handle the selected match using the GET parameter
+        selected_match = request.GET.get('selected_match', 'overall')
+        match_results = MatchResult.objects.filter(tournament=tournament)
+        if selected_match != 'overall':
+            match_results = match_results.filter(match_schedule__match_number=selected_match)
+
+        # Calculate team-specific data
+        team_data = []
+        for team in teams:
+            team_match_results = match_results.filter(team=team)
+            total_points = sum(result.total_points for result in team_match_results)
+            total_position_points = sum(result.position_points for result in team_match_results)
+            total_finishes_points = sum(result.finishes_points for result in team_match_results)
+            total_wins = team_match_results.filter(match_schedule__winning_team=team).count()
+            team_data.append({
+                'name': team.name,
+                'logo_url': team.logo.url,
+                'total_points': total_points,
+                'total_position_points': total_position_points,
+                'total_finishes_points': total_finishes_points,
+                'total_wins': total_wins
+            })
+
+        if is_ajax(request):
+            return JsonResponse({'team_data': team_data})
+
+        # Retrieve match numbers for the dropdown
+        match_numbers = ['overall'] + list(match_results.values_list('match_schedule__match_number', flat=True).distinct())
+
+        return render(request, 'standings/team_standings.html', {
+            'tournament_name': tournament_name,
+            'teams': teams,
+            'matches': match_numbers,
+            'selected_match': selected_match,
+        })
+    except Tournament.DoesNotExist:
+        return HttpResponse('Tournament not found', status=404)
+    
+def sort(team):
+    return (
+        -team['total_points'],
+        -team['total_position_points'],
+        -team['total_finishes_points']
     )
 
-    return render(request, 'standings/team_standings.html', {'teams': teams, 'tournament_name': tournament_name})
 
 def team_standings_json(request, tournament_name):
-    # Retrieve team data and sort it based on criteria for the specified tournament
-    teams = OverallStandings.objects.filter(tournament__name=tournament_name).order_by(
-        '-total_points', '-total_position_points', '-total_finishes_points', '-total_wins'
-    )
+    selected_match = request.GET.get('selected_match')
+    
+    if selected_match == 'overall':
+        # Retrieve overall team data
+        teams = OverallStandings.objects.filter(tournament__name=tournament_name).order_by(
+            '-total_points', '-total_position_points', '-total_finishes_points', '-total_wins'
+        )
+        team_data = []
+        for team in teams:
+            team_data.append({
+                'name': team.team.name,
+                'total_points': team.total_points,
+                'total_position_points': team.total_position_points,
+                'total_finishes_points': team.total_finishes_points,
+                'total_wins': team.total_wins,
+                'logo_url': team.team.logo.url
+            })
+    else:
+        # Retrieve match-specific data
+        match_results = MatchResult.objects.filter(
+            tournament__name=tournament_name,
+            match_schedule__match_number=selected_match
+        )
+
+        # Get a list of distinct team IDs that participated in the selected match
+        team_ids = match_results.values_list('team', flat=True).distinct()
+
+        # Calculate team-specific data for the selected match
+        team_data = []
+        for team_id in team_ids:
+            team_match_results = match_results.filter(team_id=team_id)
+            total_points = sum(result.total_points for result in team_match_results)
+            total_position_points = sum(result.position_points for result in team_match_results)
+            total_finishes_points = sum(result.finishes_points for result in team_match_results)
+            total_wins = team_match_results.filter(match_schedule__winning_team_id=team_id).count()
+            team_data.append({
+                'name': team_match_results[0].team.name,
+                'total_points': total_points,
+                'total_position_points': total_position_points,
+                'total_finishes_points': total_finishes_points,
+                'total_wins': total_wins,
+                'logo_url': team_match_results[0].team.logo.url
+            })
+
+        # # Sort teams based on total points for the selected match
+        # team_data.sort(key=lambda x: x['total_points'], reverse=True)
+        
+        # Sort the team_data based on the custom sorting key
+        team_data.sort(key=sort)
 
     # Convert team data to a JSON-friendly format
-    team_data = [{'name': team.team.name, 'total_points': team.total_points, 'total_position_points': team.total_position_points,
-                  'total_finishes_points': team.total_finishes_points, 'total_wins': team.total_wins} for team in teams]
+    team_data = [
+        {
+            'name': team['name'],
+            'total_points': team['total_points'],
+            'total_position_points': team['total_position_points'],
+            'total_finishes_points': team['total_finishes_points'],
+            'total_wins': team['total_wins'],
+            'logo_url': team['logo_url']
+        }
+        for team in team_data
+    ]
 
     return JsonResponse({'team_data': team_data})
 

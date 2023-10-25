@@ -134,7 +134,7 @@ LOGIN_REDIRECT_URL = '/profile/'
 LOGOUT_REDIRECT_URL = '/'  # Replace with the URL of your login page
   
 
-CSRF_TRUSTED_ORIGINS = ['https://d042-103-159-151-109.ngrok-free.app']
+CSRF_TRUSTED_ORIGINS = ['https://f059-103-159-151-109.ngrok-free.app']
 
 
 MEDIA_URL = '/media/'  # The URL where media files will be served from

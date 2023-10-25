@@ -80,15 +80,40 @@
         .drag-animation {
             animation: drag-and-drop 2s ease-in-out;
         }
+
+        /* Styles for team logos */
+        .team-logo {
+            max-width: 50px;
+            max-height: 50px;
+        }
     </style>
 </head>
 <body>
-    <h1>Team Standings</h1>
+    <h1>
+        {% if selected_match == 'overall' %}
+            {{ tournament_name }} Overall Standings
+        {% else %}
+            {{ tournament_name }} Match {{ selected_match }} Standings
+        {% endif %}
+    </h1>
+
+    <!-- Dropdown for selecting different matches -->
+    <label for="match-select">Select Match:</label>
+    <select id="match-select">
+        <option value="overall">Overall Standings</option>
+    {% for match_number in matches %}
+        {% if match_number != "overall" %}
+            <option value="{{ match_number }}">Match {{ match_number }}</option>
+        {% endif %}
+    {% endfor %}
+</select>
+
     <div id="team-standings-table-container">
         <table id="team-standings-table">
             <thead>
                 <tr>
                     <th>Team</th>
+                    <th>Logo</th>
                     <th>Total Points</th>
                     <th>Position Points</th>
                     <th>Finishes Points</th>
@@ -99,6 +124,7 @@
                 {% for team in teams %}
                     <tr>
                         <td>{{ team.team.name }}</td>
+                        <td><img src="{{ team.logo_url }}" alt="{{ team.team.name }}" class="team-logo"></td>
                         <td>{{ team.total_points }}</td>
                         <td>{{ team.total_position_points }}</td>
                         <td>{{ team.total_finishes_points }}</td>
@@ -108,35 +134,42 @@
             </tbody>
         </table>
     </div>
+
     <p><a href="{% url 'generate_team_standings_poster' tournament_name %}">Download Poster</a></p>
     <a href="{% url 'custom_template' tournament_name %}">Custom Template</a>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        function updateTable() {
+        function updateTable(selectedMatch) {
             $.ajax({
                 url: "{% url 'team_standings_json' tournament_name %}",
                 type: "GET",
                 dataType: "json",
+                data: { selected_match: selectedMatch },
                 success: function(data) {
                     const table = $("#team-standings-table tbody");
+                    table.empty(); // Clear the existing table rows
+    
                     const teamData = data.team_data;
-
-                    // Iterate through the rows and update the data with a "drag and drop" animation
-                    table.find("tr").each(function(index, row) {
-                        const team = teamData[index];
-                        const tds = $(row).find("td");
-
-                        // Add a class to trigger the "drag and drop" animation
-                        $(row).addClass("drag-animation");
-
-                        // Update the row content
-                        tds.eq(0).text(team.name);
-                        tds.eq(1).text(team.total_points);
-                        tds.eq(2).text(team.total_position_points);
-                        tds.eq(3).text(team.total_finishes_points);
-                        tds.eq(4).text(team.total_wins);
+    
+                    // Populate the table with the updated data
+                    teamData.forEach(function (team) {
+                        const row = $("<tr>");
+                        row.append($("<td>").text(team.name));
+                        row.append($("<td>").html('<img src="' + team.logo_url + '" alt="' + team.name + '" class="team-logo">'));
+                        row.append($("<td>").text(team.total_points));
+                        row.append($("<td>").text(team.total_position_points));
+                        row.append($("<td>").text(team.total_finishes_points));
+                        row.append($("<td>").text(team.total_wins));
+                        table.append(row);
                     });
+    
+                    // Update the header text
+                    if (selectedMatch === 'overall') {
+                        $("h1").text("{{ tournament_name }} Overall Standings");
+                    } else {
+                        $("h1").text("{{ tournament_name }} Match " + selectedMatch + " Standings");
+                    }
                 },
                 error: function(error) {
                     console.error("Error fetching data:", error);
@@ -144,8 +177,23 @@
             });
         }
     
-        // Call updateTable function periodically (e.g., every 5 seconds)
-        setInterval(updateTable, 5000);
+        function refreshTable() {
+            const selectedMatch = $("#match-select").val();
+            updateTable(selectedMatch);
+        }
+    
+        // Initialize by showing overall standings
+        updateTable("overall");
+    
+        // Call updateTable function when the dropdown selection changes
+        $("#match-select").change(function() {
+            const selectedMatch = $(this).val();
+            updateTable(selectedMatch);
+        });
+    
+        // Automatically refresh the table every 5 minutes (300,000 milliseconds)
+        setInterval(refreshTable, 30);
     </script>
+    
 </body>
 </html>
